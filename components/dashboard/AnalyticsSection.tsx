@@ -6,8 +6,9 @@ import { UsageChart } from '@/components/charts/UsageChart'
 import { RadialChart } from '@/components/charts/RadialChart'
 import { HeatmapChart } from '@/components/charts/HeatmapChart'
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter'
-import { mockUsageData, mockAccounts } from '@/data/mockData'
-import { BarChart3, PieChart, Calendar, TrendingUp, Download } from 'lucide-react'
+import { getUsageData, getAccounts, UsageData, Account } from '@/lib/db'
+import { BarChart3, PieChart, Calendar, TrendingUp, Download, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 const heatmapData = Array.from({ length: 7 }, () =>
   Array.from({ length: 7 }, () => Math.floor(Math.random() * 100))
@@ -21,10 +22,52 @@ const providerData = [
 ]
 
 export function AnalyticsSection() {
-  const totalGemini = mockAccounts.reduce((sum, a) => sum + a.geminiQuota.used, 0)
-  const totalAnti = mockAccounts.reduce((sum, a) => sum + a.antigravityQuota.used, 0)
-  const totalQuota = mockAccounts.reduce((sum, a) => sum + a.geminiQuota.total + a.antigravityQuota.total, 0)
-  const usagePercent = Math.round(((totalGemini + totalAnti) / totalQuota) * 100)
+  const [usageData, setUsageData] = useState<UsageData[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      const [usage, accts] = await Promise.all([getUsageData(7), getAccounts()])
+      setUsageData(usage)
+      setAccounts(accts)
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  const totalGemini = accounts.reduce((sum, a) => sum + a.geminiQuota.used, 0)
+  const totalAnti = accounts.reduce((sum, a) => sum + a.antigravityQuota.used, 0)
+  const totalQuota = accounts.reduce((sum, a) => sum + a.geminiQuota.total + a.antigravityQuota.total, 0)
+  const usagePercent = totalQuota > 0 ? Math.round(((totalGemini + totalAnti) / totalQuota) * 100) : 0
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <GlassCard key={i} className="p-5 animate-pulse">
+              <div className="h-20 bg-white/5 rounded-lg" />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-12 text-center">
+          <Database className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-semibold text-white mb-2">No Analytics Data</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Connect accounts and start using AI models to see your usage analytics.
+          </p>
+        </GlassCard>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -96,7 +139,13 @@ export function AnalyticsSection() {
               </div>
             </div>
             <div className="h-72">
-              <UsageChart data={mockUsageData} type="bar" />
+              {usageData.length > 0 ? (
+                <UsageChart data={usageData} type="bar" />
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  No usage data yet
+                </div>
+              )}
             </div>
           </GlassCard>
         </motion.div>

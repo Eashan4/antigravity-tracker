@@ -3,10 +3,53 @@
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { mockSessions, mockAccounts } from '@/data/mockData'
-import { Shield, Clock, Activity, Globe, Monitor, X } from 'lucide-react'
+import { getSessions, getAccounts, Session, Account } from '@/lib/db'
+import { Shield, Clock, Activity, Globe, Monitor, X, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export function SessionsSection() {
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      const [sess, accts] = await Promise.all([getSessions(), getAccounts()])
+      setSessions(sess)
+      setAccounts(accts)
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          {[1, 2].map((i) => (
+            <GlassCard key={i} className="p-4 animate-pulse">
+              <div className="h-8 bg-white/5 rounded-lg" />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-12 text-center">
+          <Database className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-semibold text-white mb-2">No Active Sessions</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Connect accounts to start monitoring active sessions.
+          </p>
+        </GlassCard>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -21,10 +64,10 @@ export function SessionsSection() {
         </div>
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 rounded-xl bg-success/10 border border-success/20">
-            <span className="text-xs text-success font-medium">{mockSessions.filter(s => s.status === 'active').length} Active</span>
+            <span className="text-xs text-success font-medium">{sessions.filter(s => s.status === 'active').length} Active</span>
           </div>
           <div className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/20">
-            <span className="text-xs text-accent font-medium">{mockSessions.filter(s => s.status === 'idle').length} Idle</span>
+            <span className="text-xs text-accent font-medium">{sessions.filter(s => s.status === 'idle').length} Idle</span>
           </div>
         </div>
       </motion.div>

@@ -7,14 +7,77 @@ import { QuotaCard } from '@/components/widgets/QuotaCard'
 import { HealthMonitor } from '@/components/widgets/HealthMonitor'
 import { RoutingVisualizer } from '@/components/widgets/RoutingVisualizer'
 import { UsageChart } from '@/components/charts/UsageChart'
-import { mockAccounts, mockHealthMetrics, mockRoutingEvents, mockUsageData } from '@/data/mockData'
-import { Activity, TrendingUp, Users, Zap, Globe, Clock } from 'lucide-react'
+import { getAccounts, getHealthMetrics, getRoutingEvents, getUsageData, Account, HealthMetric, RoutingEvent, UsageData } from '@/lib/db'
+import { Activity, TrendingUp, Users, Zap, Globe, Clock, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export function OverviewSection() {
-  const totalRequests = mockAccounts.reduce((sum, a) => sum + a.requestsToday, 0)
-  const totalAccounts = mockAccounts.length
-  const activeAccounts = mockAccounts.filter(a => a.status === 'active').length
-  const avgLatency = Math.round(mockAccounts.reduce((sum, a) => sum + a.latency, 0) / mockAccounts.length)
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetric[]>([])
+  const [routingEvents, setRoutingEvents] = useState<RoutingEvent[]>([])
+  const [usageData, setUsageData] = useState<UsageData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      const [accts, health, events, usage] = await Promise.all([
+        getAccounts(),
+        getHealthMetrics(),
+        getRoutingEvents(10),
+        getUsageData(7),
+      ])
+      setAccounts(accts)
+      setHealthMetrics(health)
+      setRoutingEvents(events)
+      setUsageData(usage)
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  const totalRequests = accounts.reduce((sum, a) => sum + a.requestsToday, 0)
+  const totalAccounts = accounts.length
+  const activeAccounts = accounts.filter(a => a.status === 'active').length
+  const avgLatency = totalAccounts > 0 ? Math.round(accounts.reduce((sum, a) => sum + a.latency, 0) / totalAccounts) : 0
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <GlassCard key={i} className="p-5 animate-pulse">
+              <div className="h-20 bg-white/5 rounded-lg" />
+            </GlassCard>
+          ))}
+        </div>
+        <GlassCard className="p-5 h-96 animate-pulse">
+          <div className="h-full bg-white/5 rounded-lg" />
+        </GlassCard>
+      </div>
+    )
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <GlassCard className="p-12 text-center">
+            <Database className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Accounts Connected</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Connect your first AI account to start monitoring quotas, routing prompts, and managing your AI infrastructure.
+            </p>
+            <button className="mt-6 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors">
+              + Connect Account
+            </button>
+          </GlassCard>
+        </motion.div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -74,7 +137,13 @@ export function OverviewSection() {
               </div>
             </div>
             <div className="h-64">
-              <UsageChart data={mockUsageData} type="area" />
+              {usageData.length > 0 ? (
+                <UsageChart data={usageData} type="area" />
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  No usage data yet
+                </div>
+              )}
             </div>
           </GlassCard>
         </motion.div>
@@ -84,7 +153,7 @@ export function OverviewSection() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <RoutingVisualizer events={mockRoutingEvents} />
+          <RoutingVisualizer events={routingEvents} />
         </motion.div>
       </div>
 
@@ -108,7 +177,7 @@ export function OverviewSection() {
             <span className="text-xs text-success">All systems operational</span>
           </div>
         </div>
-        <HealthMonitor metrics={mockHealthMetrics} />
+        <HealthMonitor metrics={healthMetrics.length > 0 ? healthMetrics : []} />
       </motion.div>
 
       {/* Account quota cards */}
@@ -127,7 +196,7 @@ export function OverviewSection() {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {mockAccounts.map((account, index) => (
+          {accounts.map((account, index) => (
             <QuotaCard key={account.id} account={account} index={index} />
           ))}
         </div>

@@ -3,23 +3,30 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '@/hooks/useStore'
 import { useAuth } from '@/lib/AuthContext'
-import { Bell, Search, Command, User, LogOut, ChevronDown } from 'lucide-react'
+import { useTheme } from '@/hooks/useTheme'
+import { Bell, Search, Command, User, LogOut, ChevronDown, Sun, Moon, Monitor } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { NotificationCenter } from '@/components/widgets/NotificationCenter'
-import { mockNotifications } from '@/data/mockData'
+import { cn } from '@/lib/utils'
 
 export function TopBar() {
   const { sidebarCollapsed, toggleCommandPalette, showNotifications, toggleNotifications, setHasEntered } = useStore()
   const { user, signOut } = useAuth()
+  const { theme, cycleTheme, setTheme, mounted } = useTheme()
   const [searchFocused, setSearchFocused] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showThemeMenu, setShowThemeMenu] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const themeMenuRef = useRef<HTMLDivElement>(null)
 
-  // Close user menu on outside click
+  // Close menus on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false)
+      }
+      if (themeMenuRef.current && !themeMenuRef.current.contains(e.target as Node)) {
+        setShowThemeMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -35,6 +42,14 @@ export function TopBar() {
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin User'
   const displayEmail = user?.email || 'admin@quotverse.ai'
   const avatarUrl = user?.user_metadata?.avatar_url
+
+  const themeIcons = {
+    light: Sun,
+    dark: Moon,
+    system: Monitor,
+  }
+  const ThemeIcon = mounted ? themeIcons[theme] : Moon
+  const themeLabels = { light: 'Light', dark: 'Dark', system: 'System' }
 
   return (
     <>
@@ -72,6 +87,58 @@ export function TopBar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <div className="relative" ref={themeMenuRef}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowThemeMenu(!showThemeMenu)}
+              className="relative p-2.5 rounded-xl hover:bg-white/5 transition-colors"
+              title={`Theme: ${themeLabels[theme]}`}
+            >
+              <ThemeIcon className="w-5 h-5 text-muted-foreground" />
+            </motion.button>
+
+            <AnimatePresence>
+              {showThemeMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-40 rounded-xl bg-surface/95 backdrop-blur-xl border border-white/[0.08] shadow-2xl overflow-hidden"
+                >
+                  <div className="p-1.5">
+                    <div className="px-3 py-2 text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                      Theme
+                    </div>
+                    {(['light', 'dark', 'system'] as const).map((mode) => {
+                      const Icon = themeIcons[mode]
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => {
+                            setTheme(mode)
+                            setShowThemeMenu(false)
+                          }}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                            theme === mode
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-white hover:bg-white/5'
+                          )}
+                        >
+                          <Icon className="w-4 h-4" />
+                          {themeLabels[mode]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Notifications */}
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -134,14 +201,10 @@ export function TopBar() {
       </motion.header>
 
       <NotificationCenter
-        notifications={mockNotifications}
+        notifications={[]}
         isOpen={showNotifications}
         onClose={toggleNotifications}
       />
     </>
   )
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ')
 }

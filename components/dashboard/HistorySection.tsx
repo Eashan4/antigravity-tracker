@@ -2,14 +2,25 @@
 
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
-import { mockRoutingEvents } from '@/data/mockData'
-import { History, Filter, Download, ArrowUpRight, ArrowDownLeft, Clock, Hash } from 'lucide-react'
-import { useState } from 'react'
+import { getRoutingEvents, RoutingEvent } from '@/lib/db'
+import { History, Filter, Download, ArrowUpRight, ArrowDownLeft, Clock, Hash, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export function HistorySection() {
   const [filter, setFilter] = useState('all')
+  const [events, setEvents] = useState<RoutingEvent[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filteredEvents = mockRoutingEvents.filter((event) => {
+  useEffect(() => {
+    async function loadEvents() {
+      const data = await getRoutingEvents(100)
+      setEvents(data)
+      setLoading(false)
+    }
+    loadEvents()
+  }, [])
+
+  const filteredEvents = events.filter((event) => {
     if (filter === 'all') return true
     return event.status === filter
   })
@@ -26,6 +37,30 @@ export function HistorySection() {
     failed: 'bg-danger/10 border-danger/20',
     fallback: 'bg-accent/10 border-accent/20',
     routing: 'bg-secondary/10 border-secondary/20',
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-8 animate-pulse">
+          <div className="h-64 bg-white/5 rounded-lg" />
+        </GlassCard>
+      </div>
+    )
+  }
+
+  if (events.length === 0) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-12 text-center">
+          <History className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-semibold text-white mb-2">No Routing History</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Your prompt routing history will appear here once you start using AI models.
+          </p>
+        </GlassCard>
+      </div>
+    )
   }
 
   return (
@@ -119,32 +154,28 @@ export function HistorySection() {
                   key={event.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.03 }}
                   className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                 >
                   <td className="px-5 py-4">
-                    <span className="text-xs text-muted-foreground font-mono">#{event.id}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{event.id.slice(0, 8)}</span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="text-xs text-white truncate max-w-[150px] block">{event.source}</span>
+                    <span className="text-xs text-white">{event.source}</span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="text-xs text-primary">{event.target}</span>
+                    <span className="text-xs text-white">{event.target}</span>
                   </td>
                   <td className="px-5 py-4">
                     <span className="text-xs text-muted-foreground">{event.model}</span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border ${statusBg[event.status]}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${statusColors[event.status].replace('text-', 'bg-')}`} />
-                      <span className={statusColors[event.status]}>{event.status}</span>
+                    <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-medium border ${statusBg[event.status] || statusBg.completed}`}>
+                      <span className={statusColors[event.status] || 'text-muted-foreground'}>{event.status}</span>
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {event.latency > 0 ? `${event.latency}ms` : '-'}
-                    </div>
+                    <span className="text-xs text-white">{event.latency}ms</span>
                   </td>
                   <td className="px-5 py-4">
                     <span className="text-xs text-white">{event.tokensUsed > 0 ? event.tokensUsed.toLocaleString() : '-'}</span>

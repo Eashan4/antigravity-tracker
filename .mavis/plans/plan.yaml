@@ -1,0 +1,297 @@
+version: 1
+plan:
+  name: 'antigravity-tracker-production-ready'
+  max_concurrency: 3
+  max_consecutive_failures: 2
+  max_cycles: 8
+  auto_reject_retries: 1
+tasks:
+  - id: remove-mock-data
+    title: 'Remove mock data, use Supabase real data'
+    prompt: |
+      Go to /Users/eashanjain/Documents/Antigravity Tracker
+
+      ## Mission
+      Replace ALL mock data in data/mockData.ts with real Supabase queries. The app currently shows fake hardcoded data - it needs to fetch from your actual Supabase backend.
+
+      ## Steps
+      1. First, read the current files:
+         - data/mockData.ts (the mock data to remove)
+         - types/index.ts (data types)
+         - lib/supabase.ts (Supabase client)
+         - components/dashboard/*.tsx (components using mock data)
+
+      2. Create a new file `lib/db.ts` that:
+         - Imports the supabase client from lib/supabase.ts
+         - Creates typed query functions for each data type (accounts, models, usage, routing events, etc.)
+         - Each function should query from Supabase tables (or return empty arrays if tables don't exist yet)
+         - Include fallback demo mode: if Supabase tables don't exist, return empty arrays instead of fake data
+
+      3. Update components to use real data:
+         - AccountsSection: query 'accounts' table or show empty state
+         - ModelsSection: query 'models' table or show "Configure your AI models" empty state
+         - AnalyticsSection: query usage data from Supabase or show empty charts
+         - RoutingSection: query routing events or show empty log
+         - OverviewSection: aggregate real data or show "Connect your accounts"
+         - All other sections that use mock* variables should use real queries
+
+      4. DELETE or clear data/mockData.ts - remove all hardcoded mock arrays:
+         - mockAccounts, mockModels, mockUsageData, mockRoutingEvents, mockHealthMetrics, mockNotifications, mockSessions, providerRegistry
+
+      5. Ensure components handle empty/loading states gracefully
+
+      ## Verification
+      - Run `npm run build` and confirm it compiles
+      - No more "mockAccounts" or "mockModels" or any mock* imports in component files
+      - Components should use functions from lib/db.ts instead
+    assigned_to: general
+    verified_by: general
+    verify_prompt: |
+      Verify:
+      1. Run `npm run build` - should succeed
+      2. grep for "mockAccounts\|mockModels\|mockUsage\|mockRouting\|mockHealth\|mockNotif\|mockSess\|providerRegistry" in components/ - should return nothing
+      3. Check that lib/db.ts exists with real Supabase query functions
+    timeout_ms: 1800000
+
+  - id: theme-system
+    title: 'Implement light/dark/system theme with toggle'
+    prompt: |
+      Go to /Users/eashanjain/Documents/Antigravity Tracker
+
+      ## Mission
+      Add a proper theme system: dark mode (current default), light mode, and system auto-detect. Add a theme toggle in the UI.
+
+      ## Steps
+      1. Create `hooks/useTheme.ts`:
+         - Detect system preference with `window.matchMedia('(prefers-color-scheme: dark)')`
+         - States: 'light' | 'dark' | 'system'
+         - Persist preference in localStorage key 'theme-preference'
+         - Apply theme via class on document.documentElement (add/remove 'light' class)
+         - Default to 'system' on first visit
+
+      2. Update `app/globals.css`:
+         - Add light mode color variables to complement dark:
+           - --background: light ~gray-50 (#f8fafc), dark ~gray-950 (#020617)
+           - --foreground: light ~gray-900, dark ~gray-50
+           - --card: light white, dark gray-900
+           - --card-foreground: light gray-900, dark gray-50
+           - --primary: keep current purple, but adjust for light (lighter shade)
+           - --secondary: keep current cyan, adjust for light
+           - --muted: light gray-100, dark gray-800
+           - --muted-foreground: light gray-600, dark gray-400
+           - --accent: light gray-100, dark gray-800
+           - --border: light gray-200, dark gray-800
+           - --destructive: keep red tones
+         - Use `[data-theme="light"]` and `[data-theme="dark"]` selectors
+
+      3. Update `app/layout.tsx`:
+         - Add script to apply theme before first paint (prevents flash)
+         - Use useTheme hook to manage theme state
+
+      4. Update `components/dashboard/TopBar.tsx`:
+         - Add theme toggle button (sun/moon/monitor icons from lucide-react)
+         - Show current theme: click cycles through light → dark → system
+         - Add dropdown or button group for theme selection
+
+      5. Verify in `tailwind.config.ts` that all color classes are defined for both themes
+
+      ## Verification
+      - Build succeeds: `npm run build`
+      - Theme toggle visible in TopBar
+      - Theme persists across page refresh
+      - No flash of wrong theme on page load
+    assigned_to: general
+    verified_by: general
+    verify_prompt: |
+      Verify:
+      1. `npm run build` succeeds
+      2. Check TopBar has theme toggle button
+      3. Check hooks/useTheme.ts exists with system preference detection
+      4. Check globals.css has light theme variables with data-theme selectors
+    timeout_ms: 1200000
+
+  - id: auth-setup-guide
+    title: 'Create Google Auth setup guide'
+    prompt: |
+      Go to /Users/eashanjain/Documents/Antigravity Tracker
+
+      ## Mission
+      Document what the user needs to do in Supabase to enable Google authentication, and create a README section explaining the auth flow.
+
+      ## Steps
+      1. Read lib/AuthContext.tsx and lib/supabase.ts to understand current auth setup
+
+      2. Create `docs/AUTH_SETUP.md` with step-by-step instructions for:
+         ### Supabase Google OAuth Setup
+         1. Go to https://supabase.com/dashboard/project/_/authentication/providers
+         2. Enable Google provider
+         3. Get Google OAuth credentials:
+            - Go to https://console.cloud.google.com/apis/credentials
+            - Create OAuth 2.0 Client ID (Web application)
+            - Add authorized redirect URI: `https://<your-supabase-project>.supabase.co/auth/v1/callback`
+         4. Copy Client ID and Client Secret to Supabase Google provider settings
+         5. In Supabase, enable email confirmation if needed
+
+         ### For Direct Email/Password Login
+         - Supabase Auth is already configured in AuthContext.tsx
+         - No additional setup needed - it works out of the box
+
+         ### Testing Auth Flow
+         - Local: http://localhost:3000
+         - After deploy: https://antigravity-tracker-sage.vercel.app
+         - Auth callback URL: /auth/callback
+
+         ### Backend Status
+         - Supabase handles all auth (users, sessions, OAuth)
+         - No separate backend needed
+         - All auth data stored in Supabase Auth (users table)
+
+      3. Create/update `README.md` at root with:
+         - Quick start section
+         - Auth section referencing docs/AUTH_SETUP.md
+         - Deployment section (update with actual Vercel URL)
+         - Environment variables section
+
+      ## Verification
+      - docs/AUTH_SETUP.md exists with detailed setup steps
+      - README.md updated with auth info
+    assigned_to: general
+    verified_by: general
+    verify_prompt: |
+      Verify:
+      1. docs/AUTH_SETUP.md exists with Google OAuth setup steps
+      2. README.md has auth section or reference
+    timeout_ms: 600000
+
+  - id: custom-domain
+    title: 'Setup custom domain antigravity-quota.com'
+    prompt: |
+      Go to /Users/eashanjain/Documents/Antigravity Tracker
+
+      ## Mission
+      Document custom domain setup and create deployment configs for antigravity-quota.com
+
+      ## Steps
+      1. Create `docs/CUSTOM_DOMAIN_SETUP.md`:
+         ### Vercel Custom Domain Setup (antigravity-quota.com)
+         1. Buy domain from any registrar (Namecheap, GoDaddy, Google Domains, etc.)
+         2. Go to Vercel Dashboard → Project → Settings → Domains
+         3. Add domain: `antigravity-quota.com`
+         4. Vercel will provide DNS records to add:
+            - Add @ A record pointing to 76.76.21.21 (Vercel's IP)
+            - OR add CNAME pointing to cname.vercel-dns.com
+         5. Wait for SSL certificate (automatic)
+         6. Optionally add www subdomain
+
+         ### DNS Configuration
+         For Cloudflare users:
+         - Set proxy mode to "DNS only" initially for faster propagation
+         - Switch to "Proxied" after verification
+
+         For GoDaddy:
+         - DNS Management → Add new record
+         - CNAME: www → cname.vercel-dns.com
+         - A record: @ → 76.76.21.21
+
+      2. Update next.config.js:
+         - Add domain to images.remotePatterns if needed
+         - Ensure security headers configured
+
+      3. Create deployment verification script `scripts/verify-deploy.sh`:
+         - Test that the site loads
+         - Test that Supabase connection works
+         - Check for any console errors
+
+      ## Verification
+      - docs/CUSTOM_DOMAIN_SETUP.md created with detailed DNS instructions
+    assigned_to: general
+    verified_by: general
+    verify_prompt: |
+      Verify:
+      1. docs/CUSTOM_DOMAIN_SETUP.md exists with complete DNS setup instructions
+      2. next.config.js properly configured
+    timeout_ms: 600000
+
+  - id: mobile-responsive
+    title: 'Improve mobile responsive design'
+    prompt: |
+      Go to /Users/eashanjain/Documents/Antigravity Tracker
+
+      ## Mission
+      Improve mobile (iOS Safari, Android Chrome) experience. Currently the sidebar overlaps on mobile. Make it truly responsive.
+
+      ## Steps
+      1. Read current layout components:
+         - components/dashboard/Sidebar.tsx
+         - components/dashboard/TopBar.tsx
+         - app/page.tsx (main layout)
+
+      2. Update Sidebar.tsx:
+         - Mobile: slide-out drawer from left (hidden by default)
+         - Add hamburger menu button in TopBar for mobile
+         - On mobile tap hamburger → toggle sidebar drawer
+         - Overlay with backdrop on mobile when sidebar open
+         - Breakpoint: md (768px) and below = mobile drawer mode
+         - lg (1024px) and above = inline sidebar as current
+
+      3. Update TopBar.tsx:
+         - Mobile: add hamburger icon on left side (only visible on mobile)
+         - Add app title/name in center or beside hamburger
+         - Ensure it doesn't overlap with sidebar toggle
+
+      4. Update app/page.tsx:
+         - Main content area properly adjusts with sidebar state
+         - On mobile, content takes full width when sidebar closed
+         - Proper padding adjustments for small screens
+
+      5. Test responsive classes:
+         - Sidebar: `hidden md:flex` (inline on md+)
+         - Hamburger: `flex md:hidden`
+         - Content margins adjust appropriately
+
+      6. Add touch-friendly targets (min 44px tap targets for iOS)
+
+      7. Check all section components for responsive layouts:
+         - Cards should stack on mobile (not overflow)
+         - Tables should scroll horizontally
+         - Charts should resize properly
+
+      ## Verification
+      - `npm run build` succeeds
+      - Sidebar shows as drawer on mobile (hidden on desktop)
+      - Hamburger menu appears on mobile only
+      - No horizontal overflow on mobile viewport
+    assigned_to: general
+    verified_by: general
+    verify_prompt: |
+      Verify:
+      1. `npm run build` succeeds
+      2. Check Sidebar.tsx has mobile drawer mode with md breakpoint
+      3. Check TopBar.tsx has hamburger menu for mobile
+      4. Run `grep -n "md:hidden\|hidden md:" components/dashboard/Sidebar.tsx` - should find responsive classes
+    timeout_ms: 1200000
+
+  - id: final-build-deploy
+    title: 'Final build and deploy'
+    prompt: |
+      Go to /Users/eashanjain/Documents/Antigravity Tracker
+
+      ## Mission
+      After all tasks complete, build and deploy to Vercel.
+
+      ## Steps
+      1. Run `npm run build` - must succeed
+      2. Run `npm run lint` - check for errors
+      3. Deploy: `vercel --prod`
+      4. Report deployment URL
+
+      ## Verification
+      - Production deployment successful
+      - Site accessible at URL
+    assigned_to: general
+    verified_by: general
+    verify_prompt: |
+      Verify:
+      1. Build output shows success
+      2. Deployment URL provided
+    timeout_ms: 600000

@@ -1,12 +1,12 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { CircularProgress } from '@/components/ui/CircularProgress'
-import { mockAccounts } from '@/data/mockData'
-import { Account } from '@/types'
+import { getAccounts, Account } from '@/lib/db'
+import { Account as AccountType } from '@/types'
 import {
   Search,
   Filter,
@@ -22,16 +22,28 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  Database,
 } from 'lucide-react'
 import Image from 'next/image'
 
 export function AccountsSection() {
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedAccounts, setSelectedAccounts] = useState<Set<string>>(new Set())
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null)
 
-  const filteredAccounts = mockAccounts.filter((account) => {
+  useEffect(() => {
+    async function loadAccounts() {
+      const data = await getAccounts()
+      setAccounts(data)
+      setLoading(false)
+    }
+    loadAccounts()
+  }, [])
+
+  const filteredAccounts = accounts.filter((account) => {
     const matchesSearch = account.email.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter = filterStatus === 'all' || account.status === filterStatus
     return matchesSearch && matchesFilter
@@ -50,6 +62,39 @@ export function AccountsSection() {
     } else {
       setSelectedAccounts(new Set(filteredAccounts.map((a) => a.id)))
     }
+  }
+
+  // Show empty state or loading
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-12 animate-pulse">
+          <div className="h-64 bg-white/5 rounded-lg" />
+        </GlassCard>
+      </div>
+    )
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <GlassCard className="p-12 text-center">
+            <Database className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Accounts Connected</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Connect your first AI account to start monitoring quotas and routing prompts.
+            </p>
+            <button className="mt-6 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors">
+              + Connect Account
+            </button>
+          </GlassCard>
+        </motion.div>
+      </div>
+    )
   }
 
   return (

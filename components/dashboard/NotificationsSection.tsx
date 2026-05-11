@@ -2,9 +2,9 @@
 
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
-import { mockNotifications } from '@/data/mockData'
+import { getNotifications, Notification } from '@/lib/db'
 import { Bell, CheckCircle2, AlertTriangle, AlertCircle, Info, Trash2, Check } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const typeConfig = {
   info: { icon: Info, color: 'text-secondary', bg: 'bg-secondary/10', border: 'border-secondary/20', label: 'Info' },
@@ -14,8 +14,18 @@ const typeConfig = {
 }
 
 export function NotificationsSection() {
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [filter, setFilter] = useState<string>('all')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadNotifications() {
+      const data = await getNotifications()
+      setNotifications(data)
+      setLoading(false)
+    }
+    loadNotifications()
+  }, [])
 
   const filtered = notifications.filter((n) => {
     if (filter === 'all') return true
@@ -29,6 +39,20 @@ export function NotificationsSection() {
 
   const clearAll = () => {
     setNotifications([])
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <GlassCard key={i} className="p-4 animate-pulse">
+              <div className="h-16 bg-white/5 rounded-lg" />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -3,14 +3,55 @@
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { RoutingVisualizer } from '@/components/widgets/RoutingVisualizer'
-import { mockRoutingEvents, mockAccounts } from '@/data/mockData'
-import { GitBranch, Settings, ToggleLeft, ToggleRight, Zap, Shield, Route } from 'lucide-react'
-import { useState } from 'react'
+import { getRoutingEvents, getAccounts, RoutingEvent, Account } from '@/lib/db'
+import { GitBranch, Settings, ToggleLeft, ToggleRight, Zap, Shield, Route, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 export function RoutingSection() {
+  const [routingEvents, setRoutingEvents] = useState<RoutingEvent[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [loading, setLoading] = useState(true)
   const [autoRoute, setAutoRoute] = useState(true)
   const [fallbackEnabled, setFallbackEnabled] = useState(true)
   const [loadBalance, setLoadBalance] = useState(true)
+
+  useEffect(() => {
+    async function loadData() {
+      const [events, accts] = await Promise.all([getRoutingEvents(20), getAccounts()])
+      setRoutingEvents(events)
+      setAccounts(accts)
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <GlassCard key={i} className="p-5 animate-pulse">
+              <div className="h-24 bg-white/5 rounded-lg" />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-12 text-center">
+          <Database className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-semibold text-white mb-2">AI Routing Engine</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Connect accounts to enable intelligent prompt routing across your AI providers.
+          </p>
+        </GlassCard>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -98,7 +139,7 @@ export function RoutingSection() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <RoutingVisualizer events={mockRoutingEvents} />
+        <RoutingVisualizer events={routingEvents} />
       </motion.div>
 
       {/* Routing rules */}
@@ -120,7 +161,7 @@ export function RoutingSection() {
           </div>
 
           <div className="space-y-3">
-            {mockAccounts.map((account, index) => (
+            {accounts.map((account, index) => (
               <motion.div
                 key={account.id}
                 initial={{ opacity: 0, x: -20 }}

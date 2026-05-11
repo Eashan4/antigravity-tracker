@@ -3,23 +3,78 @@
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { ModelCard } from '@/components/widgets/ModelCard'
-import { mockModels, providerRegistry } from '@/data/mockData'
-import { ModelProvider } from '@/types'
-import { Cpu, SlidersHorizontal, ExternalLink } from 'lucide-react'
-import { useState } from 'react'
+import { getModels, getProviderRegistry, Model, ProviderInfo } from '@/lib/db'
+import { Cpu, SlidersHorizontal, ExternalLink, Database } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
-type FilterType = 'all' | ModelProvider
+type FilterType = 'all' | 'gemini' | 'anthropic' | 'openai' | 'antigravity' | 'meta' | 'mistral'
+
+// Default provider registry
+const defaultProviders: Record<string, ProviderInfo> = {
+  gemini: { id: 'gemini', name: 'Google Gemini', color: '#8b5cf6', glowColor: 'rgba(139, 92, 246, 0.4)', icon: '✦', url: 'https://gemini.google.com' },
+  anthropic: { id: 'anthropic', name: 'Anthropic', color: '#d97706', glowColor: 'rgba(217, 119, 6, 0.4)', icon: '◈', url: 'https://claude.ai' },
+  openai: { id: 'openai', name: 'OpenAI', color: '#10b981', glowColor: 'rgba(16, 185, 129, 0.4)', icon: '◉', url: 'https://chatgpt.com' },
+  antigravity: { id: 'antigravity', name: 'Antigravity', color: '#06b6d4', glowColor: 'rgba(6, 182, 212, 0.4)', icon: '⚡', url: 'https://antigravity.ai' },
+  meta: { id: 'meta', name: 'Meta AI', color: '#3b82f6', glowColor: 'rgba(59, 130, 246, 0.4)', icon: '◎', url: 'https://ai.meta.com' },
+  mistral: { id: 'mistral', name: 'Mistral AI', color: '#f43f5e', glowColor: 'rgba(244, 63, 94, 0.4)', icon: '✧', url: 'https://chat.mistral.ai' },
+}
 
 export function ModelsSection() {
   const [filter, setFilter] = useState<FilterType>('all')
+  const [models, setModels] = useState<Model[]>([])
+  const [providers, setProviders] = useState<Record<string, ProviderInfo>>(defaultProviders)
+  const [loading, setLoading] = useState(true)
 
-  const filteredModels = mockModels.filter((m) => {
+  useEffect(() => {
+    async function loadData() {
+      const [modelsData, providersData] = await Promise.all([
+        getModels(),
+        getProviderRegistry(),
+      ])
+      setModels(modelsData)
+      setProviders(Object.keys(providersData).length > 0 ? providersData : defaultProviders)
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  const filteredModels = models.filter((m) => {
     if (filter === 'all') return true
     return m.provider === filter
   })
 
-  // Get unique providers from the models list
-  const activeProviders = Array.from(new Set(mockModels.map(m => m.provider)))
+  const activeProviders = Object.keys(providers)
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <GlassCard key={i} className="p-5 h-48 animate-pulse">
+              <div className="h-full bg-white/5 rounded-lg" />
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (models.length === 0) {
+    return (
+      <div className="space-y-6">
+        <GlassCard className="p-12 text-center">
+          <Cpu className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-semibold text-white mb-2">Configure Your AI Models</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Set up your AI model providers and configurations to start routing prompts intelligently.
+          </p>
+          <button className="mt-6 px-6 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors">
+            + Add Model
+          </button>
+        </GlassCard>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -32,7 +87,7 @@ export function ModelsSection() {
         <div>
           <h2 className="text-2xl font-bold text-white">AI Models</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {mockModels.length} models across {activeProviders.length} providers — click any model to access it directly
+            {models.length} models across {activeProviders.length} providers — click any model to access it directly
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -44,15 +99,15 @@ export function ModelsSection() {
                 : 'bg-white/5 text-muted-foreground hover:text-white hover:bg-white/10'
             }`}
           >
-            All ({mockModels.length})
+            All ({models.length})
           </button>
           {activeProviders.map((providerId) => {
-            const provider = providerRegistry[providerId]
-            const count = mockModels.filter(m => m.provider === providerId).length
+            const provider = providers[providerId]
+            const count = models.filter(m => m.provider === providerId).length
             return (
               <button
                 key={providerId}
-                onClick={() => setFilter(providerId)}
+                onClick={() => setFilter(providerId as FilterType)}
                 className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${
                   filter === providerId
                     ? 'text-white shadow-lg'
@@ -125,8 +180,8 @@ export function ModelsSection() {
             <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
           </div>
           <div className="space-y-4">
-            {(filter === 'all' ? mockModels : filteredModels).map((model, index) => {
-              const provider = providerRegistry[model.provider]
+            {(filter === 'all' ? models : filteredModels).map((model, index) => {
+              const provider = providers[model.provider] || defaultProviders[model.provider] || defaultProviders.gemini
               return (
                 <div key={model.id} className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
